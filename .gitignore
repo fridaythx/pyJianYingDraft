@@ -11,3 +11,9 @@ dist/
 
 .venv/
 venv/
+
+downloads
+
+deploy.zip
+draft_content.json
+draft_package.zi
