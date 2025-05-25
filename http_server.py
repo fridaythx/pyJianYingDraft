@@ -7,18 +7,19 @@ import requests
 import zipfile
 from urllib.parse import urlparse
 from dotenv import load_dotenv
-
+from datetime import datetime
 load_dotenv()
+
 
 class SimpleHandler(BaseHTTPRequestHandler):
     # 生成的草稿文件路径
     draft_path = os.path.join(os.path.dirname(__file__), "draft_content.json")
     # 默认的草稿zip文件路径
-    draft_zip_path = os.path.join(os.path.dirname(__file__), "draft_package.zip")
+    draft_zip_path = os.getenv("DRAFT_ZIP_SAVE_PATH", os.path.dirname(__file__))
     # 最终替换的资源目录
-    resource_dir = r'Z:'
+    resource_dir = os.getenv("DRAFT_RESOURCE_DIR_PATH",  r'/Volumes/ftp')
     # 从本地下载文件时的路径前缀，指向ftp目录
-    local_download_prefix = r'/Volumes/ftp'
+    local_download_prefix = os.getenv("LOCAL_DOWNLOAD_PREFIX", r'/Volumes/ftp')
 
     def do_POST(self):
         if self.path != "/jianying-draft/generate":
@@ -32,9 +33,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
         params = json.loads(raw_data.decode('utf-8'))
 
         self.generate_draft(params)
-
-        draft_zip_path = os.getenv("DRAFT_PATH", self.draft_path)
-        self.zip_files(draft_zip_path)
+        zip_file_path = self.zip_files(params)
 
         # 返回 ZIP 文件作为响应
         self.send_response(200)
@@ -42,7 +41,8 @@ class SimpleHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')  # 允许的 HTTP 方法
         self.send_header('Access-Control-Allow-Headers', '*')  # 允许的请求头
         self.end_headers()
-        print(f"Draft file saved to {draft_zip_path}")
+
+        print(f"Draft file saved to {zip_file_path}")
 
     def do_OPTIONS(self):
         # 处理预检请求
@@ -90,7 +90,6 @@ class SimpleHandler(BaseHTTPRequestHandler):
             os.makedirs(parent_dir)
 
         if not os.path.exists(local_path):
-            # resp = requests.get(url)
             with open(local_path, "wb") as dest_file:
                 with open(download_path, "rb") as src_file:
                     dest_file.write(src_file.read())
@@ -130,7 +129,8 @@ class SimpleHandler(BaseHTTPRequestHandler):
             atrack_name = atrack.get("trackName", "main_audio_track")
             script.add_track(draft.Track_type.audio, atrack_name)
             for seg in atrack.get("segments", []):
-                audio_material = draft.Audio_material(self.download_file(seg["resourceUrl"]))
+                # audio_material = draft.Audio_material(self.download_file(seg["resourceUrl"]))
+                audio_material = draft.Audio_material(self.download_file_from_local(seg["resourcePath"]))
                 audio_segment = draft.Audio_segment(
                     audio_material,
                     trange(seg["range"]["start"], seg["range"]["duration"]),
@@ -179,10 +179,15 @@ class SimpleHandler(BaseHTTPRequestHandler):
             with open(self.draft_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-    def zip_files(self, draft_zip_path):
+    def zip_files(self, params):
+        draft_name = params.get("draftName")
+        draft_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        draft_name = f"{draft_name}{draft_datetime}.zip"
+        draft_file_path = os.path.join(self.draft_zip_path, draft_name)
         # 创建 ZIP 文件
-        with zipfile.ZipFile(draft_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            zipf.write(self.draft_path, "draft_content.json")
+        with zipfile.ZipFile(draft_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.write(self.draft_path, os.path.basename(self.draft_path))
+        return draft_file_path
 
 
 def run_server(port=8082):

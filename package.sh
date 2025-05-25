@@ -1,1 +1,0 @@
-tar cvf deploy.zip http_server.py pyJianYingDraft requirements.txt 
