@@ -44,6 +44,10 @@ class SimpleHandler(BaseHTTPRequestHandler):
 
         print(f"Draft file saved to {zip_file_path}")
 
+        self.wfile.write(json.dumps({
+            "filePath": zip_file_path
+        }))
+
     def do_OPTIONS(self):
         # 处理预检请求
         self.send_response(200)
@@ -146,11 +150,20 @@ class SimpleHandler(BaseHTTPRequestHandler):
             ttrack_name = ttrack.get("trackName", "main_text_track")
             script.add_track(draft.Track_type.text, ttrack_name)
             for seg in ttrack.get("segments", []):
+                text = seg["text"]
+                # 将字符串每18个字符分成一段
+                if len(text) > 18:
+                    text = "\n".join([text[i:i + 18] for i in range(0, len(text), 18)])
                 txt_segment = draft.Text_segment(
-                    seg["text"],
+                    text,
                     trange(seg["range"]["start"], seg["range"]["duration"]),
                     font=getattr(draft.Font_type, seg.get("font", ""), draft.Font_type.文轩体),
                     style=draft.Text_style(color=tuple(seg["style"].get("color", [1.0, 1.0, 1.0]))),
+                    background=draft.Text_background(
+                        color=tuple(seg["background"].get("color", [0.0, 0.0, 0.0])),
+                        opacity=seg["background"].get("opacity", 0),
+                        radius=seg["background"].get("radius", 0.0)
+                    ),
                     clip_settings=draft.Clip_settings(
                         transform_x=seg.get("position", {}).get("x", 0.0),
                         transform_y=seg.get("position", {}).get("y", 0.0)
