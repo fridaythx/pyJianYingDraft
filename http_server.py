@@ -40,13 +40,14 @@ class SimpleHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')  # 允许所有来源
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')  # 允许的 HTTP 方法
         self.send_header('Access-Control-Allow-Headers', '*')  # 允许的请求头
+        self.send_header('Content-Type', 'application/json')
         self.end_headers()
 
         print(f"Draft file saved to {zip_file_path}")
 
         self.wfile.write(json.dumps({
             "filePath": zip_file_path
-        }))
+        }).encode('utf-8'))
 
     def do_OPTIONS(self):
         # 处理预检请求
@@ -159,10 +160,15 @@ class SimpleHandler(BaseHTTPRequestHandler):
                     trange(seg["range"]["start"], seg["range"]["duration"]),
                     font=getattr(draft.Font_type, seg.get("font", ""), draft.Font_type.文轩体),
                     style=draft.Text_style(color=tuple(seg["style"].get("color", [1.0, 1.0, 1.0]))),
+                    border=draft.Text_border(
+                        alpha=seg["border"].get("alpha", 1.0),
+                        color=tuple(seg["border"].get("color", [0.0, 0.0, 0.0])),
+                        width=seg["border"].get("width", 0.0)
+                    ),
                     background=draft.Text_background(
-                        color=tuple(seg["background"].get("color", [0.0, 0.0, 0.0])),
-                        opacity=seg["background"].get("opacity", 0),
-                        radius=seg["background"].get("radius", 0.0)
+                        color=seg["background"].get("color", "#000000"),
+                        alpha=seg["background"].get("alpha", 1.0),
+                        round_radius=seg["background"].get("radius", 0.0)
                     ),
                     clip_settings=draft.Clip_settings(
                         transform_x=seg.get("position", {}).get("x", 0.0),
