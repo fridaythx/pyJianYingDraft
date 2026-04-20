@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from datetime import datetime
 load_dotenv()
 
+DEFAULT_SUBTITLE_MIN_BOTTOM_DISTANCE = 160
+
 
 def timerange_from_payload(range_payload):
     start = range_payload["start"]
@@ -30,6 +32,22 @@ def text_from_payload(segment):
     if prefix and not prefix.endswith((":", "：")):
         prefix = f"{prefix}："
     return f"{prefix}{text}"
+
+
+def subtitle_transform_y(segment, text, resolution, default_min_bottom_distance=DEFAULT_SUBTITLE_MIN_BOTTOM_DISTANCE):
+    position = segment.get("position", {})
+    requested_y = float(position.get("y", 0.0))
+    height = float(resolution.get("height", 1920))
+    min_bottom_distance = float(segment.get("subtitleMinBottomDistance", default_min_bottom_distance))
+    font_size = float(segment.get("style", {}).get("size", 24))
+    line_count = max(1, text.count("\n") + 1)
+    text_height = line_count * font_size * 1.35
+
+    requested_center = height / 2 - requested_y * height / 2
+    lowest_safe_center = height - min_bottom_distance - text_height / 2
+    safe_center = min(requested_center, lowest_safe_center)
+    safe_y = (height / 2 - safe_center) / (height / 2)
+    return max(-1.0, min(1.0, safe_y))
 
 
 class SimpleHandler(BaseHTTPRequestHandler):
@@ -127,6 +145,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
 
     def generate_draft(self, params):
         resolution = params.get("resolution", {"width": 1920, "height": 1080})
+        subtitle_min_bottom_distance = params.get("subtitleMinBottomDistance", DEFAULT_SUBTITLE_MIN_BOTTOM_DISTANCE)
         script = draft.Script_file(resolution["width"], resolution["height"])
 
         # 处理 videoTracks
@@ -197,7 +216,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
                     ),
                     clip_settings=draft.Clip_settings(
                         transform_x=seg.get("position", {}).get("x", 0.0),
-                        transform_y=seg.get("position", {}).get("y", 0.0)
+                        transform_y=subtitle_transform_y(seg, text, resolution, subtitle_min_bottom_distance)
                     )
                 )
                 for anim in seg.get("inAnimations", []):

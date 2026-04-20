@@ -1,6 +1,6 @@
 import unittest
 
-from http_server import text_from_payload, timerange_from_payload
+from http_server import subtitle_transform_y, text_from_payload, timerange_from_payload
 from pyJianYingDraft import SEC
 
 
@@ -36,6 +36,23 @@ class TimerangeFromPayloadTest(unittest.TestCase):
             text_from_payload({"textPrefix": "韩立：", "text": "适才相戏尔"}),
             "韩立：适才相戏尔"
         )
+
+    def test_moves_multiline_subtitle_above_bottom_margin(self):
+        segment = {
+            "position": {"y": -0.9},
+            "style": {"size": 24},
+        }
+        text = "第一行\n第二行\n第三行"
+
+        self.assertGreater(subtitle_transform_y(segment, text, {"height": 1920}, 160), -0.9)
+
+    def test_keeps_subtitle_y_when_already_above_bottom_margin(self):
+        segment = {
+            "position": {"y": -0.4},
+            "style": {"size": 24},
+        }
+
+        self.assertEqual(subtitle_transform_y(segment, "一行字幕", {"height": 1920}, 160), -0.4)
 
 
 if __name__ == "__main__":
