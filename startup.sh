@@ -8,4 +8,5 @@ fi
 source .venv/bin/activate
 
 nohup python http_server.py > nohup.out 2>&1 &
-echo $! > ~/$pid_file
+
+echo $! | tee ~/$pid_file
