@@ -1,9 +1,23 @@
 import os
 import uuid
+import wave
 import pymediainfo
 
 from typing import Optional, Literal
 from typing import Dict, Any
+
+
+def _wav_duration(path: str) -> Optional[int]:
+    """Return wav duration in microseconds when the file is readable as PCM wav."""
+    try:
+        with wave.open(path, "rb") as wav_file:
+            frame_rate = wav_file.getframerate()
+            if frame_rate <= 0:
+                return None
+            return int(round(wav_file.getnframes() / frame_rate * 1e6))
+    except (EOFError, wave.Error):
+        return None
+
 
 class CropSettings:
     """素材的裁剪设置, 各属性均在0-1之间, 注意素材的坐标原点在左上角"""
@@ -174,8 +188,19 @@ class AudioMaterial:
         if len(info.video_tracks):
             raise ValueError("音频素材不应包含视频轨道")
         if not len(info.audio_tracks):
+            if os.path.splitext(path)[1].lower() == ".wav":
+                duration = _wav_duration(path)
+                if duration is not None:
+                    self.duration = duration
+                    return
             raise ValueError(f"给定的素材文件 {path} 没有音频轨道")
-        self.duration = int(info.audio_tracks[0].duration * 1e3)  # type: ignore
+        duration = info.audio_tracks[0].duration
+        if duration is None and os.path.splitext(path)[1].lower() == ".wav":
+            wav_duration = _wav_duration(path)
+            if wav_duration is not None:
+                self.duration = wav_duration
+                return
+        self.duration = int(duration * 1e3)  # type: ignore
 
     def export_json(self) -> Dict[str, Any]:
         return {

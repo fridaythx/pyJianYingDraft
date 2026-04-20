@@ -107,9 +107,13 @@ class SimpleHandler(BaseHTTPRequestHandler):
         if not os.path.exists(parent_dir):
             os.makedirs(parent_dir)
 
-        if not os.path.exists(local_path):
-            with open(local_path, "wb") as dest_file:
-                with open(download_path, "rb") as src_file:
+        should_copy = not os.path.exists(local_path)
+        if not should_copy:
+            should_copy = os.path.getsize(local_path) == 0 or os.path.getsize(local_path) != os.path.getsize(download_path)
+
+        if should_copy:
+            with open(download_path, "rb") as src_file:
+                with open(local_path, "wb") as dest_file:
                     dest_file.write(src_file.read())
         return local_path
 
