@@ -11,6 +11,19 @@ from datetime import datetime
 load_dotenv()
 
 
+def timerange_from_payload(range_payload):
+    start = range_payload["start"]
+    if "duration" in range_payload:
+        timerange = trange(start, range_payload["duration"])
+    elif "end" in range_payload:
+        timerange = draft.Timerange(tim(start), tim(range_payload["end"]) - tim(start))
+    else:
+        raise KeyError("range must include either 'duration' or 'end'")
+    if timerange.duration < 0:
+        raise ValueError("range end must be greater than or equal to start")
+    return timerange
+
+
 class SimpleHandler(BaseHTTPRequestHandler):
     # 生成的草稿文件路径
     draft_path = os.path.join(os.path.dirname(__file__), "draft_content.json")
@@ -114,7 +127,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
 
                 video_segment = draft.Video_segment(
                     video_material,
-                    trange(seg["range"]["start"], seg["range"]["duration"])
+                    timerange_from_payload(seg["range"])
                 )
                 for anim in seg.get("inAnimations", []):
                     in_animation = getattr(Intro_type, anim["name"], None)
@@ -138,13 +151,13 @@ class SimpleHandler(BaseHTTPRequestHandler):
                 audio_material = draft.Audio_material(self.download_file_from_local(seg["resourcePath"]))
                 audio_segment = draft.Audio_segment(
                     audio_material,
-                    trange(seg["range"]["start"], seg["range"]["duration"]),
+                    timerange_from_payload(seg["range"]),
                     volume=seg.get("volume", 1)
                 )
                 for fx in seg.get("effects", []):
                     fade_conf = fx.get("fade", {})
                     if fade_conf:
-                        audio_segment.add_fade(fade_conf.get("out", "0s"), fade_conf.get("in", "0s"))
+                        audio_segment.add_fade(fade_conf.get("in", "0s"), fade_conf.get("out", "0s"))
                 script.add_segment(audio_segment, track_name=atrack_name)
         # 处理 textTracks
         for ttrack in params.get("textTracks", []):
@@ -157,7 +170,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
                     text = "\n".join([text[i:i + 18] for i in range(0, len(text), 18)])
                 txt_segment = draft.Text_segment(
                     text,
-                    trange(seg["range"]["start"], seg["range"]["duration"]),
+                    timerange_from_payload(seg["range"]),
                     font=getattr(draft.Font_type, seg.get("font", ""), draft.Font_type.文轩体),
                     style=draft.Text_style(color=tuple(seg["style"].get("color", [1.0, 1.0, 1.0]))),
                     border=draft.Text_border(

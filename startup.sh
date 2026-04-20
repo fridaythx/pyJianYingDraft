@@ -5,5 +5,5 @@ if [ -f ~/$pid_file ]; then
   echo 'kill' `cat ~/$pid_file`
 fi
 
-NODE_ENV=production nohup python http_server.py > nohup.out 2>&1 &
+nohup python http_server.py > nohup.out 2>&1 &
 echo $! > ~/$pid_file
