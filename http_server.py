@@ -24,6 +24,14 @@ def timerange_from_payload(range_payload):
     return timerange
 
 
+def text_from_payload(segment):
+    text = segment["text"]
+    prefix = segment.get("textPrefix", segment.get("speaker", ""))
+    if prefix and not prefix.endswith((":", "：")):
+        prefix = f"{prefix}："
+    return f"{prefix}{text}"
+
+
 class SimpleHandler(BaseHTTPRequestHandler):
     # 生成的草稿文件路径
     draft_path = os.path.join(os.path.dirname(__file__), "draft_content.json")
@@ -168,7 +176,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
             ttrack_name = ttrack.get("trackName", "main_text_track")
             script.add_track(draft.Track_type.text, ttrack_name)
             for seg in ttrack.get("segments", []):
-                text = seg["text"]
+                text = text_from_payload(seg)
                 # 将字符串每18个字符分成一段
                 if len(text) > 18:
                     text = "\n".join([text[i:i + 18] for i in range(0, len(text), 18)])
