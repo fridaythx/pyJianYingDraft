@@ -5,5 +5,7 @@ if [ -f ~/$pid_file ]; then
   echo 'kill' `cat ~/$pid_file`
 fi
 
+source .venv/bin/activate
+
 nohup python http_server.py > nohup.out 2>&1 &
 echo $! > ~/$pid_file
