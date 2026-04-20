@@ -3,8 +3,6 @@ pid_file=.pyjianying.pid
 if [ -f ~/$pid_file ]; then
   ps -p `cat ~/$pid_file` > /dev/null 2>&1
 
-  rm ~/$pid_file
-
   if [ $? -eq 0 ]; then
     echo "Process is running with PID `cat ~/$pid_file`"
 
